@@ -3,9 +3,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getConfig } from "@/lib/config";
+import { getBaseUrl, resolveUrl } from "@/lib/live";
 import { fetchValidated, proxyAllowPrivate } from "@/lib/proxy-guard";
 import { getActiveUser } from "@/lib/user-guard";
-import { getBaseUrl, resolveUrl } from "@/lib/live";
 
 export const runtime = 'nodejs';
 

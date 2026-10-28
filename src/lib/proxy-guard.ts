@@ -143,11 +143,12 @@ export async function fetchValidated(
       redirect: 'manual',
       signal,
     });
+    const location = response.headers.get('location');
     if (
       [301, 302, 303, 307, 308].includes(response.status) &&
-      response.headers.get('location')
+      location
     ) {
-      const next = new URL(response.headers.get('location')!, current).toString();
+      const next = new URL(location, current).toString();
       try {
         response.body?.cancel();
       } catch {

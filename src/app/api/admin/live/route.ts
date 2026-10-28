@@ -1,12 +1,12 @@
 /* eslint-disable no-console,no-case-declarations */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getActiveUser } from '@/lib/user-guard';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
 import { db } from '@/lib/db';
 import { deleteCachedLiveChannels, refreshLiveChannels } from '@/lib/live';
+import { getActiveUser } from '@/lib/user-guard';
 
 export const runtime = 'nodejs';
 
