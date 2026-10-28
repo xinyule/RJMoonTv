@@ -1,12 +1,18 @@
 /* eslint-disable no-console,@typescript-eslint/no-explicit-any */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { getConfig } from "@/lib/config";
+import { fetchValidated, proxyAllowPrivate } from "@/lib/proxy-guard";
+import { getActiveUser } from "@/lib/user-guard";
 
 export const runtime = 'nodejs';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const { searchParams } = new URL(request.url);
   const url = searchParams.get('url');
   const source = searchParams.get('moontv-source');
@@ -24,11 +30,11 @@ export async function GET(request: Request) {
   try {
     const decodedUrl = url;
     console.log(decodedUrl);
-    const response = await fetch(decodedUrl, {
+    const response = await fetchValidated(decodedUrl, {
       headers: {
         'User-Agent': ua,
       },
-    });
+    }, proxyAllowPrivate(), 15000);
     if (!response.ok) {
       return NextResponse.json({ error: 'Failed to fetch key' }, { status: 500 });
     }

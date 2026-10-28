@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getConfig } from '@/lib/config';
 import { db } from '@/lib/db';
+import { ensureSessionEpoch } from '@/lib/user-guard';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +15,34 @@ const STORAGE_TYPE =
     | 'upstash'
     | 'kvrocks'
     | undefined) || 'localstorage';
+
+// v1.0.1：登录限流（内存级，单实例）。scrypt 验密本身很耗 CPU，
+// 不限流既能爆破弱口令、也能当 CPU 消耗点。
+const LOGIN_ATTEMPTS = new Map<string, { count: number; firstAt: number }>();
+function loginClientIp(req: NextRequest): string {
+  return (
+    req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
+  );
+}
+function isLoginRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = LOGIN_ATTEMPTS.get(ip);
+  if (!entry) return false;
+  if (now - entry.firstAt > 5 * 60 * 1000) {
+    LOGIN_ATTEMPTS.delete(ip);
+    return false;
+  }
+  return entry.count >= 20;
+}
+function recordLoginFailure(ip: string): void {
+  const now = Date.now();
+  const entry = LOGIN_ATTEMPTS.get(ip);
+  if (!entry || now - entry.firstAt > 5 * 60 * 1000) {
+    LOGIN_ATTEMPTS.set(ip, { count: 1, firstAt: now });
+  } else {
+    entry.count += 1;
+  }
+}
 
 // 生成签名
 async function generateSignature(
@@ -33,7 +62,7 @@ async function generateSignature(
     ['sign']
   );
 
-  // 生成签名
+// 生成签名
   const signature = await crypto.subtle.sign('HMAC', key, messageData);
 
   // 转换为十六进制字符串
@@ -56,26 +85,43 @@ function isHttpsRequest(req: NextRequest): boolean {
   return req.nextUrl.protocol === 'https:';
 }
 
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(text)
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 // 生成认证Cookie（带签名）
+// v1.0.1：localstorage 模式只放密码摘要，不再放明文密码；
+// 数据库模式签名绑定会话纪元 HMAC(username:sessionEpoch, PASSWORD)。
 async function generateAuthCookie(
   username?: string,
   password?: string,
   role?: 'owner' | 'admin' | 'user',
-  includePassword = false
+  includePassword = false,
+  sessionEpoch?: string
 ): Promise<string> {
   const authData: any = { role: role || 'user' };
 
-  // 只在需要时包含 password
+  // 只在需要时包含密码摘要（绝不放明文）
   if (includePassword && password) {
-    authData.password = password;
+    authData.passwordHash = await sha256Hex(password);
+    authData.timestamp = Date.now();
   }
 
   if (username && process.env.PASSWORD) {
     authData.username = username;
-    // 使用密码作为密钥对用户名进行签名
-    const signature = await generateSignature(username, process.env.PASSWORD);
+    authData.sessionEpoch = sessionEpoch || '';
+    const signature = await generateSignature(
+      `${username}:${authData.sessionEpoch}`,
+      process.env.PASSWORD
+    );
     authData.signature = signature;
-    authData.timestamp = Date.now(); // 添加时间戳防重放攻击
+    authData.timestamp = Date.now();
   }
 
   return encodeURIComponent(JSON.stringify(authData));
@@ -83,6 +129,13 @@ async function generateAuthCookie(
 
 export async function POST(req: NextRequest) {
   const useSecureCookie = isHttpsRequest(req);
+  const clientIp = loginClientIp(req);
+  if (isLoginRateLimited(clientIp)) {
+    return NextResponse.json(
+      { error: '登录尝试过于频繁，请 5 分钟后再试' },
+      { status: 429 }
+    );
+  }
   try {
     // 本地 / localStorage 模式——仅校验固定密码
     if (STORAGE_TYPE === 'localstorage') {
@@ -110,6 +163,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (password !== envPassword) {
+        recordLoginFailure(clientIp);
         return NextResponse.json(
           { ok: false, error: '密码错误' },
           { status: 401 }
@@ -155,11 +209,13 @@ export async function POST(req: NextRequest) {
     ) {
       // 验证成功，设置认证cookie
       const response = NextResponse.json({ ok: true });
+      const ownerEpoch = await ensureSessionEpoch(username);
       const cookieValue = await generateAuthCookie(
         username,
         password,
         'owner',
-        false
+        false,
+        ownerEpoch
       ); // 数据库模式不包含 password
       const expires = new Date();
       expires.setDate(expires.getDate() + 7); // 7天过期
@@ -174,6 +230,7 @@ export async function POST(req: NextRequest) {
 
       return response;
     } else if (username === process.env.USERNAME) {
+      recordLoginFailure(clientIp);
       return NextResponse.json({ error: '用户名或密码错误' }, { status: 401 });
     }
 
@@ -187,6 +244,7 @@ export async function POST(req: NextRequest) {
     try {
       const pass = await db.verifyUser(username, password);
       if (!pass) {
+        recordLoginFailure(clientIp);
         return NextResponse.json(
           { error: '用户名或密码错误' },
           { status: 401 }
@@ -195,11 +253,13 @@ export async function POST(req: NextRequest) {
 
       // 验证成功，设置认证cookie
       const response = NextResponse.json({ ok: true });
+      const userEpoch = await ensureSessionEpoch(username);
       const cookieValue = await generateAuthCookie(
         username,
         password,
         user?.role || 'user',
-        false
+        false,
+        userEpoch
       ); // 数据库模式不包含 password
       const expires = new Date();
       expires.setDate(expires.getDate() + 7); // 7天过期

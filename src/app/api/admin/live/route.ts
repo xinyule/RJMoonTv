@@ -1,6 +1,7 @@
 /* eslint-disable no-console,no-case-declarations */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getActiveUser } from '@/lib/user-guard';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
@@ -10,6 +11,10 @@ import { deleteCachedLiveChannels, refreshLiveChannels } from '@/lib/live';
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     // 权限检查
     const authInfo = getAuthInfoFromCookie(request);

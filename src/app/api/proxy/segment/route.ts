@@ -1,12 +1,18 @@
 /* eslint-disable no-console,@typescript-eslint/no-explicit-any */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { getConfig } from "@/lib/config";
+import { fetchValidated, proxyAllowPrivate } from "@/lib/proxy-guard";
+import { getActiveUser } from "@/lib/user-guard";
 
 export const runtime = 'nodejs';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const { searchParams } = new URL(request.url);
   const url = searchParams.get('url');
   const source = searchParams.get('moontv-source');
@@ -26,11 +32,12 @@ export async function GET(request: Request) {
 
   try {
     const decodedUrl = url;
-    response = await fetch(decodedUrl, {
+    // 流式传输不设总超时，否则长视频会被掐断；重定向仍逐跳校验
+    response = await fetchValidated(decodedUrl, {
       headers: {
         'User-Agent': ua,
       },
-    });
+    }, proxyAllowPrivate());
     if (!response.ok) {
       return NextResponse.json({ error: 'Failed to fetch segment' }, { status: 500 });
     }

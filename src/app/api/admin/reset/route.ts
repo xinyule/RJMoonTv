@@ -1,13 +1,18 @@
 /* eslint-disable no-console */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getActiveUser } from '@/lib/user-guard';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { resetConfig } from '@/lib/config';
 
 export const runtime = 'nodejs';
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
   if (storageType === 'localstorage') {
     return NextResponse.json(
@@ -48,4 +53,10 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// v1.0.1：重置配置是写操作，不再接受 GET，避免站长访问任意页面/图片
+// 就被 CSRF 触发。管理页已同步改为 POST。
+export async function GET() {
+  return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
 }

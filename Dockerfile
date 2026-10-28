@@ -1,3 +1,5 @@
+# RJMoonTv（xinyule/RJMoonTv）Docker 构建：直接从本仓库源码构建，
+# 不从任何上游仓库 clone；镜像名见 .github/workflows/docker-image.yml（ghcr.io/xinyule/rjmoontv）。
 # ---- 第 1 阶段：安装依赖 ----
 FROM node:20-alpine AS deps
 

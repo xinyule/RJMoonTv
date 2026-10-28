@@ -63,7 +63,7 @@ jobs:
           WITH_TAGS: ${{ github.event.inputs.with_tags }}
         run: |
           AUTH="${PAT:-$TOKEN}"
-          git remote set-url origin "https://x-access-token:${AUTH}@github.com/xinyule/Moontv-lunatv.git"
+          git remote set-url origin "https://x-access-token:${AUTH}@github.com/xinyule/RJMoonTv.git"
           git push --force-with-lease origin main
           if [ "$WITH_TAGS" = "true" ]; then git push --force origin --tags || true; fi
 

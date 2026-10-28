@@ -1,10 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getActiveUser } from '@/lib/user-guard';
 
 import { getCacheTime } from '@/lib/config';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
 

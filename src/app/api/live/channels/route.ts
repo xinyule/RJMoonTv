@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getActiveUser } from '@/lib/user-guard';
 
 import { getCachedLiveChannels } from '@/lib/live';
 
 export const runtime = 'nodejs';
 
+
 export async function GET(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const sourceKey = searchParams.get('source');

@@ -1,6 +1,7 @@
 /* eslint-disable no-console,@typescript-eslint/no-explicit-any */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getActiveUser } from '@/lib/user-guard';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getConfig, refineConfig } from '@/lib/config';
@@ -9,6 +10,10 @@ import { db } from '@/lib/db';
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
   if (storageType === 'localstorage') {
     return NextResponse.json(

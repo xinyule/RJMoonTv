@@ -1,3 +1,6 @@
+// v1.0.1 安全提示：本文件是独立的 Cloudflare Worker 开放代理，Next.js 主应用不使用它。
+// 它按设计代理任意 URL，部署后任何人都能用它转发请求，请勿公开部署。
+// 如需使用，请部署在仅自己可访问的环境，或在 Cloudflare Access / Basic Auth 后面再暴露。
 /* eslint-disable */
 
 addEventListener('fetch', (event) => {

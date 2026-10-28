@@ -90,7 +90,7 @@
 ```yml
 services:
   moontv-core:
-    image: ghcr.io/moontechlab/lunatv:latest
+    image: ghcr.io/xinyule/rjmoontv:latest
     container_name: moontv-core
     restart: on-failure
     ports:
@@ -124,7 +124,7 @@ volumes:
 ```yml
 services:
   moontv-core:
-    image: ghcr.io/moontechlab/lunatv:latest
+    image: ghcr.io/xinyule/rjmoontv:latest
     container_name: moontv-core
     restart: on-failure
     ports:
@@ -160,7 +160,7 @@ networks:
 ```yml
 services:
   moontv-core:
-    image: ghcr.io/moontechlab/lunatv:latest
+    image: ghcr.io/xinyule/rjmoontv:latest
     container_name: moontv-core
     restart: on-failure
     ports:
@@ -197,7 +197,7 @@ Zeabur 是一站式云端部署平台，使用预构建的 Docker 镜像可以�
 
 2. **添加 LunaTV 服务**
    - 点击 "Add Service" > "Docker Images"
-   - 输入镜像名称：`ghcr.io/moontechlab/lunatv:latest`
+   - 输入镜像名称：`ghcr.io/xinyule/rjmoontv:latest`
    - 配置端口：`3000` (HTTP)
 
 3. **配置环境变量**
@@ -407,4 +407,4 @@ v100.0.0 以上版本可配合 [Selene](https://github.com/MoonTechLab/Selene) �
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=MoonTechLab/LunaTV&type=Date)](https://www.star-history.com/#MoonTechLab/LunaTV&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=xinyule/RJMoonTv&type=Date)](https://www.star-history.com/#xinyule/RJMoonTv&Date)

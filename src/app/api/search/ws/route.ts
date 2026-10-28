@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-import { getAuthInfoFromCookie } from '@/lib/auth';
+import { getActiveUser } from '@/lib/user-guard';
 import { getAvailableApiSites, getConfig } from '@/lib/config';
 import { searchFromApi } from '@/lib/downstream';
 import { yellowWords } from '@/lib/yellow';
@@ -10,10 +10,11 @@ import { yellowWords } from '@/lib/yellow';
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  const authInfo = getAuthInfoFromCookie(request);
-  if (!authInfo || !authInfo.username) {
+  const active = await getActiveUser(request);
+  if (!active.allowed || !active.username) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const authInfo = { username: active.username };
 
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');

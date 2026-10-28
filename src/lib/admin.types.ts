@@ -23,6 +23,7 @@ export interface AdminConfig {
       username: string;
       role: 'user' | 'admin' | 'owner';
       banned?: boolean;
+      sessionEpoch?: string; // 会话纪元：改密/封禁/降级后轮换，旧 Cookie 即失效
       enabledApis?: string[]; // 优先级高于tags限制
       tags?: string[]; // 多 tags 取并集限制
     }[];

@@ -1,13 +1,19 @@
 /* eslint-disable no-console,@typescript-eslint/no-explicit-any */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { getConfig } from "@/lib/config";
+import { fetchValidated, proxyAllowPrivate } from "@/lib/proxy-guard";
+import { getActiveUser } from "@/lib/user-guard";
 import { getBaseUrl, resolveUrl } from "@/lib/live";
 
 export const runtime = 'nodejs';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const { searchParams } = new URL(request.url);
   const url = searchParams.get('url');
   const allowCORS = searchParams.get('allowCORS') === 'true';
@@ -28,14 +34,12 @@ export async function GET(request: Request) {
 
   try {
     const decodedUrl = url;
-    response = await fetch(decodedUrl, {
+    response = await fetchValidated(decodedUrl, {
       cache: 'no-cache',
-      redirect: 'follow',
-      credentials: 'same-origin',
       headers: {
         'User-Agent': ua,
       },
-    });
+    }, proxyAllowPrivate(), 15000);
 
     if (!response.ok) {
       return NextResponse.json({ error: 'Failed to fetch m3u8' }, { status: 500 });

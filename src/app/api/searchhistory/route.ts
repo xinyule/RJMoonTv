@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getActiveUser } from '@/lib/user-guard';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
@@ -16,6 +17,10 @@ const HISTORY_LIMIT = 20;
  * 返回 string[]
  */
 export async function GET(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     // 从 cookie 获取用户信息
     const authInfo = getAuthInfoFromCookie(request);
@@ -53,6 +58,10 @@ export async function GET(request: NextRequest) {
  * body: { keyword: string }
  */
 export async function POST(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     // 从 cookie 获取用户信息
     const authInfo = getAuthInfoFromCookie(request);
@@ -105,6 +114,10 @@ export async function POST(request: NextRequest) {
  * 2. 带 keyword=<kw> -> 删除单条关键字
  */
 export async function DELETE(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     // 从 cookie 获取用户信息
     const authInfo = getAuthInfoFromCookie(request);
