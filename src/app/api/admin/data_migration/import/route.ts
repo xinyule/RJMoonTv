@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getActiveUser } from '@/lib/user-guard';
 import { promisify } from 'util';
 import { gunzip } from 'zlib';
 
@@ -14,6 +15,10 @@ export const runtime = 'nodejs';
 const gunzipAsync = promisify(gunzip);
 
 export async function POST(req: NextRequest) {
+  const active = await getActiveUser(req);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     // 检查存储类型
     const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';

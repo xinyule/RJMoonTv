@@ -27,36 +27,55 @@ export async function middleware(request: NextRequest) {
     return handleAuthFailure(request, pathname);
   }
 
-  // localstorage模式：在middleware中完成验证
+  // v1.0.1：Cookie 时间戳服务端也要校验，过期（7 天）即失效，
+  // 不能只靠浏览器端的 expires 属性（偷到的 Cookie 本可一直重放）。
+  if (
+    authInfo.timestamp &&
+    (authInfo.timestamp > Date.now() + 5 * 60 * 1000 ||
+      Date.now() - authInfo.timestamp > 7 * 24 * 60 * 60 * 1000)
+  ) {
+    return handleAuthFailure(request, pathname);
+  }
+
+  // localstorage模式：在middleware中完成验证。
+  // v1.0.1 起 Cookie 里不再放明文密码，只放密码的 SHA-256 摘要；
+  // 旧的明文 Cookie 登录后会重新发摘要版，旧 Cookie 直接失效。
   if (storageType === 'localstorage') {
-    if (!authInfo.password || authInfo.password !== process.env.PASSWORD) {
+    if (!authInfo.passwordHash) {
+      return handleAuthFailure(request, pathname);
+    }
+    const expectedHash = await sha256Hex(process.env.PASSWORD || '');
+    if (authInfo.passwordHash !== expectedHash) {
       return handleAuthFailure(request, pathname);
     }
     return NextResponse.next();
   }
 
-  // 其他模式：只验证签名
-  // 检查是否有用户名（非localStorage模式下密码不存储在cookie中）
-  if (!authInfo.username || !authInfo.signature) {
+  // 其他模式：只验证签名。签名现在绑定会话纪元
+  // HMAC(username:sessionEpoch, PASSWORD)，旧的无纪元 Cookie 直接失效，
+  // 改密/封禁/降级轮换纪元后，API 层的纪元校验会拦住旧会话。
+  if (!authInfo.username || !authInfo.signature || !authInfo.sessionEpoch) {
     return handleAuthFailure(request, pathname);
   }
 
-  // 验证签名（如果存在）
-  if (authInfo.signature) {
-    const isValidSignature = await verifySignature(
-      authInfo.username,
-      authInfo.signature,
-      process.env.PASSWORD || ''
-    );
-
-    // 签名验证通过即可
-    if (isValidSignature) {
-      return NextResponse.next();
-    }
+  const isValidSignature = await verifySignature(
+    `${authInfo.username}:${authInfo.sessionEpoch}`,
+    authInfo.signature,
+    process.env.PASSWORD || ''
+  );
+  if (isValidSignature) {
+    return NextResponse.next();
   }
 
-  // 签名验证失败或不存在签名
   return handleAuthFailure(request, pathname);
+}
+
+async function sha256Hex(text: string): Promise<string> {
+  const data = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 // 验证签名

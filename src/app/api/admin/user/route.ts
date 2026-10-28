@@ -1,12 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console,@typescript-eslint/no-non-null-assertion */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getActiveUser } from '@/lib/user-guard';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
 import { db } from '@/lib/db';
 
 export const runtime = 'nodejs';
+
+function newSessionEpoch(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function isStrongPassword(pw: string): boolean {
+  return pw.trim().length >= 8 && /[A-Za-z]/.test(pw) && /[0-9]/.test(pw);
+}
 
 // 支持的操作类型
 const ACTIONS = [
@@ -24,6 +35,10 @@ const ACTIONS = [
 ] as const;
 
 export async function POST(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
   if (storageType === 'localstorage') {
     return NextResponse.json(
@@ -126,6 +141,13 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
+        // v1.0.1：此前新增用户只校验非空，弱口令可直接建号
+        if (!isStrongPassword(targetPassword)) {
+          return NextResponse.json(
+            { error: '密码至少 8 位，且须同时包含字母和数字' },
+            { status: 400 }
+          );
+        }
         await db.registerUser(targetUsername!, targetPassword);
 
         // 获取用户组信息
@@ -166,6 +188,7 @@ export async function POST(request: NextRequest) {
           }
         }
         targetEntry.banned = true;
+        targetEntry.sessionEpoch = newSessionEpoch();
         break;
       }
       case 'unban': {
@@ -228,6 +251,7 @@ export async function POST(request: NextRequest) {
           );
         }
         targetEntry.role = 'user';
+        targetEntry.sessionEpoch = newSessionEpoch();
         break;
       }
       case 'changePassword': {
@@ -239,6 +263,9 @@ export async function POST(request: NextRequest) {
         }
         if (!targetPassword) {
           return NextResponse.json({ error: '缺少新密码' }, { status: 400 });
+        }
+        if (!isStrongPassword(targetPassword)) {
+          return NextResponse.json({ error: '密码至少 8 位，且须同时包含字母和数字' }, { status: 400 });
         }
 
         // 权限检查：不允许修改站长密码
@@ -261,6 +288,7 @@ export async function POST(request: NextRequest) {
         }
 
         await db.changePassword(targetUsername!, targetPassword);
+        targetEntry.sessionEpoch = newSessionEpoch();
         break;
       }
       case 'deleteUser': {

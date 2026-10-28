@@ -16,8 +16,35 @@ const MIN_INTERVAL_MS = 5 * 60 * 1000;
 let runningJob: Promise<void> | null = null;
 let lastRunAt = 0;
 
+function cronSecretOk(request: NextRequest): boolean {
+  // v1.0.1：此前 /api/cron 无任何鉴权，任何人都能触发“刷新全部直播源、
+  // 遍历全部用户播放记录/收藏并请求上游”的重活。
+  // 修复后必须配 CRON_SECRET：Docker 由 start.js 用请求头转发；
+  // Vercel Cron 会在配了 CRON_SECRET 时自动带 Bearer token。
+  // 不配 CRON_SECRET 时 cron 直接禁用，不再默认公开。
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false;
+  const bearer = request.headers.get('authorization');
+  const provided =
+    (bearer?.startsWith('Bearer ') ? bearer.slice(7) : '') ||
+    request.headers.get('x-cron-secret') ||
+    '';
+  if (!provided || provided.length !== secret.length) return false;
+  let diff = 0;
+  for (let i = 0; i < secret.length; i++) {
+    diff |= secret.charCodeAt(i) ^ provided.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 export async function GET(request: NextRequest) {
   console.log(request.url);
+  if (!cronSecretOk(request)) {
+    return NextResponse.json(
+      { error: 'Cron 未授权：请配置 CRON_SECRET 并由可信调度器携带' },
+      { status: 401 }
+    );
+  }
   try {
     console.log('Cron job triggered:', new Date().toISOString());
 

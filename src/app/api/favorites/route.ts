@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getActiveUser } from '@/lib/user-guard';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
@@ -17,6 +18,10 @@ export const runtime = 'nodejs';
  * 2. 带 key=source+id，返回单条收藏（Favorite | null）。
  */
 export async function GET(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     // 从 cookie 获取用户信息
     const authInfo = getAuthInfoFromCookie(request);
@@ -71,6 +76,10 @@ export async function GET(request: NextRequest) {
  * body: { key: string; favorite: Favorite }
  */
 export async function POST(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     // 从 cookie 获取用户信息
     const authInfo = getAuthInfoFromCookie(request);
@@ -142,6 +151,10 @@ export async function POST(request: NextRequest) {
  * 2. 带 key=source+id -> 删除单条收藏
  */
 export async function DELETE(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     // 从 cookie 获取用户信息
     const authInfo = getAuthInfoFromCookie(request);

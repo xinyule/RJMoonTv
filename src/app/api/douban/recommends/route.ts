@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getActiveUser } from '@/lib/user-guard';
 
 import { getCacheTime } from '@/lib/config';
 import { fetchDoubanData } from '@/lib/douban';
@@ -26,6 +27,10 @@ interface DoubanRecommendApiResponse {
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
+  const active = await getActiveUser(request as any);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const { searchParams } = new URL(request.url);
 
   // 获取参数

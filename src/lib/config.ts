@@ -391,6 +391,7 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
     banned: false,
     enabledApis: originOwnerCfg?.enabledApis || undefined,
     tags: originOwnerCfg?.tags || undefined,
+    sessionEpoch: originOwnerCfg?.sessionEpoch || undefined,
   });
 
   // 采集源去重

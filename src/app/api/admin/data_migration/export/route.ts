@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getActiveUser } from '@/lib/user-guard';
 import { promisify } from 'util';
 import { gzip } from 'zlib';
 
@@ -14,6 +15,10 @@ export const runtime = 'nodejs';
 const gzipAsync = promisify(gzip);
 
 export async function POST(req: NextRequest) {
+  const active = await getActiveUser(req);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     // 检查存储类型
     const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
@@ -44,6 +49,10 @@ export async function POST(req: NextRequest) {
     const { password } = await req.json();
     if (!password || typeof password !== 'string') {
       return NextResponse.json({ error: '请提供加密密码' }, { status: 400 });
+    }
+    // v1.0.1：备份里含用户密码哈希，加密口令太弱等于没加密
+    if (password.length < 12) {
+      return NextResponse.json({ error: '备份加密口令至少 12 位，请用随机长口令' }, { status: 400 });
     }
 
     // 收集所有数据
@@ -82,8 +91,12 @@ export async function POST(req: NextRequest) {
       exportData.data.userData[username] = userData;
     }
 
-    // 覆盖站长密码
-    exportData.data.userData[process.env.USERNAME].password = process.env.PASSWORD;
+    // v1.0.1：此前这里把站长明文 PASSWORD 直接写进备份文件。
+    // 站长密码来自环境变量，不属于数据库用户，备份里不包含它；
+    // 恢复后站长仍用环境变量里的密码登录，导入时跳过该字段。
+    if (exportData.data.userData[process.env.USERNAME]) {
+      exportData.data.userData[process.env.USERNAME].password = null;
+    }
 
     // 将数据转换为JSON字符串
     const jsonData = JSON.stringify(exportData);

@@ -1,12 +1,18 @@
 /* eslint-disable no-console */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getActiveUser } from '@/lib/user-guard';
 
 import { getConfig } from '@/lib/config';
 
 export const runtime = 'nodejs';
 
+
 export async function GET(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   console.log(request.url)
   try {
     const config = await getConfig();

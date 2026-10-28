@@ -1,11 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-import { checkImageProxyTarget, isImageContentType } from '@/lib/proxy-guard';
+import { checkProxyTarget, isImageContentType, fetchValidated } from '@/lib/proxy-guard';
+import { getActiveUser } from '@/lib/user-guard';
 
 export const runtime = 'nodejs';
 
 // OrionTV 兼容接口
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const { searchParams } = new URL(request.url);
   const imageUrl = searchParams.get('url');
 
@@ -14,19 +19,20 @@ export async function GET(request: Request) {
   }
 
   // 只允许代理公网 http(s) 图片，避免被用来探测内网服务
-  const invalidReason = checkImageProxyTarget(imageUrl);
+  // v1.0.1：改用异步校验，含 DNS 解析校验；重定向在 fetchValidated 里逐跳校验
+  const invalidReason = await checkProxyTarget(imageUrl, false);
   if (invalidReason) {
     return NextResponse.json({ error: invalidReason }, { status: 400 });
   }
 
   try {
-    const imageResponse = await fetch(imageUrl, {
+    const imageResponse = await fetchValidated(imageUrl, {
       headers: {
         Referer: 'https://movie.douban.com/',
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
       },
-    });
+    }, false, 15000);
 
     if (!imageResponse.ok) {
       return NextResponse.json(

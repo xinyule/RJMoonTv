@@ -3,10 +3,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getConfig } from '@/lib/config';
+import { fetchValidated, proxyAllowPrivate } from '@/lib/proxy-guard';
+import { getActiveUser } from '@/lib/user-guard';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
+  const active = await getActiveUser(request);
+  if (!active.allowed) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const { searchParams } = new URL(request.url);
   const url = searchParams.get('url');
   const source = searchParams.get('moontv-source');
@@ -23,14 +29,12 @@ export async function GET(request: NextRequest) {
 
   try {
     const decodedUrl = url;
-    const response = await fetch(decodedUrl, {
+    const response = await fetchValidated(decodedUrl, {
       cache: 'no-cache',
-      redirect: 'follow',
-      credentials: 'same-origin',
       headers: {
         'User-Agent': ua,
       },
-    });
+    }, proxyAllowPrivate(), 15000);
 
     if (!response.ok) {
       return NextResponse.json({ error: 'Failed to fetch', message: response.statusText }, { status: 500 });
