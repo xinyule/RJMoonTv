@@ -20,9 +20,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm
+        # 不在这里写死 version：package.json 的 packageManager 已指定 pnpm@10.14.0，
+        # 两处同时写会报 Multiple versions of pnpm specified，导致 CI #8 在 Setup pnpm 失败
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node
         uses: actions/setup-node@v4
