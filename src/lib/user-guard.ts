@@ -71,9 +71,11 @@ export async function bumpSessionEpoch(username: string): Promise<string> {
 /** 登录时取用或新建某用户的会话纪元，并落盘。 */
 export async function ensureSessionEpoch(username: string): Promise<string> {
   const config = await getConfig();
-  let entry = config.UserConfig.Users.find((u) => u.username === username);
-  if (!entry) {
-    entry = { username, role: username === process.env.USERNAME ? 'owner' : 'user' } as any;
+  const found = config.UserConfig.Users.find((u) => u.username === username);
+  const entry =
+    found ??
+    ({ username, role: username === process.env.USERNAME ? 'owner' : 'user' } as any);
+  if (!found) {
     config.UserConfig.Users.push(entry);
   }
   if (!entry.sessionEpoch) {
