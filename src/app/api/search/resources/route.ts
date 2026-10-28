@@ -2,8 +2,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-import { getActiveUser } from '@/lib/user-guard';
 import { getAvailableApiSites } from '@/lib/config';
+import { getActiveUser } from '@/lib/user-guard';
 
 export const runtime = 'nodejs';
 

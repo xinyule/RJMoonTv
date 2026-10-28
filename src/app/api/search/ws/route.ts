@@ -2,9 +2,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-import { getActiveUser } from '@/lib/user-guard';
 import { getAvailableApiSites, getConfig } from '@/lib/config';
 import { searchFromApi } from '@/lib/downstream';
+import { getActiveUser } from '@/lib/user-guard';
 import { yellowWords } from '@/lib/yellow';
 
 export const runtime = 'nodejs';

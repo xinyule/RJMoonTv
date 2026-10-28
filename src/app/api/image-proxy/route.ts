@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { checkProxyTarget, isImageContentType, fetchValidated } from '@/lib/proxy-guard';
+import { checkProxyTarget, fetchValidated,isImageContentType } from '@/lib/proxy-guard';
 import { getActiveUser } from '@/lib/user-guard';
 
 export const runtime = 'nodejs';

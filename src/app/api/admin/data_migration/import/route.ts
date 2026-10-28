@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getActiveUser } from '@/lib/user-guard';
 import { promisify } from 'util';
 import { gunzip } from 'zlib';
 
@@ -9,6 +8,7 @@ import { getAuthInfoFromCookie } from '@/lib/auth';
 import { configSelfCheck, setCachedConfig } from '@/lib/config';
 import { SimpleCrypto } from '@/lib/crypto';
 import { db } from '@/lib/db';
+import { getActiveUser } from '@/lib/user-guard';
 
 export const runtime = 'nodejs';
 

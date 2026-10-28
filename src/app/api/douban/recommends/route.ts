@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getActiveUser } from '@/lib/user-guard';
 
 import { getCacheTime } from '@/lib/config';
 import { fetchDoubanData } from '@/lib/douban';
 import { DoubanResult } from '@/lib/types';
+import { getActiveUser } from '@/lib/user-guard';
 
 interface DoubanRecommendApiResponse {
   total: number;
@@ -27,7 +27,7 @@ interface DoubanRecommendApiResponse {
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  const active = await getActiveUser(request as any);
+  const active = await getActiveUser(request);
   if (!active.allowed) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

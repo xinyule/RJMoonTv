@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getActiveUser } from '@/lib/user-guard';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
 import { API_CONFIG } from '@/lib/config';
+import { getActiveUser } from '@/lib/user-guard';
 
 export const runtime = 'nodejs';
 
